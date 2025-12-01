@@ -52,3 +52,4 @@ ios/Pods/
 # Firebase 비공개 키
 google-services.json
 GoogleService-Info.plist
+backend/.env

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -12,93 +12,31 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { fetchExploreUsers } from '../../services/api'; // ★ API 함수 import
 
 const { width } = Dimensions.get('window');
 const CARD_MARGIN = 12;
 const CARD_WIDTH = (width - 48) / 2; // (화면너비 - 전체패딩) / 2
 
-// Mock Data (더미 데이터 확장)
-const allProfiles = [
-  {
-    id: 1,
-    name: "지우",
-    age: 26,
-    location: "강남구",
-    image: "https://images.unsplash.com/photo-1696435552024-5fc45acf98c4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwd29tYW4lMjBzdHJlZXQlMjBzdHlsZXxlbnwxfHx8fDE3NjE2MTc2Mzl8MA&ixlib=rb-4.1.0&q=80&w=1080",
-    styleScore: 92,
-    tags: ["미니멀", "모던"]
-  },
-  {
-    id: 2,
-    name: "민준",
-    age: 28,
-    location: "성수동",
-    image: "https://images.unsplash.com/photo-1534260748473-e1c629d04bb0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwbWFuJTIwbWluaW1hbCUyMG91dGZpdHxlbnwxfHx8fDE3NjE2MTc2Mzl8MA&ixlib=rb-4.1.0&q=80&w=1080",
-    styleScore: 88,
-    tags: ["스트릿", "클래식"]
-  },
-  {
-    id: 3,
-    name: "서연",
-    age: 25,
-    location: "홍대",
-    image: "https://images.unsplash.com/photo-1559878541-926091e4c31b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwcG9ydHJhaXQlMjBtb2RlbHxlbnwxfHx8fDE3NjE1MDc3NzF8MA&ixlib=rb-4.1.0&q=80&w=1080",
-    styleScore: 95,
-    tags: ["빈티지", "유니크"]
-  },
-  {
-    id: 4,
-    name: "하늘",
-    age: 27,
-    location: "이태원",
-    image: "https://images.unsplash.com/photo-1593484338605-301459b6bea5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxrb3JlYW4lMjBzdHJlZXQlMjBmYXNoaW9ufGVufDF8fHx8MTc2MTYxNzY0MHww&ixlib=rb-4.1.0&q=80&w=1080",
-    styleScore: 90,
-    tags: ["하이패션", "에지"]
-  },
-  {
-    id: 5,
-    name: "유진",
-    age: 24,
-    location: "압구정",
-    image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=60",
-    styleScore: 85,
-    tags: ["러블리", "캐주얼"]
-  },
-  {
-    id: 6,
-    name: "도윤",
-    age: 29,
-    location: "한남동",
-    image: "https://images.unsplash.com/photo-1480455624313-e29b44bbfde1?w=800&auto=format&fit=crop&q=60",
-    styleScore: 89,
-    tags: ["댄디", "비즈니스"]
-  },
-  {
-    id: 7,
-    name: "지아",
-    age: 23,
-    location: "연남동",
-    image: "https://images.unsplash.com/photo-1529139574466-a302c27e3844?w=800&auto=format&fit=crop&q=60",
-    styleScore: 94,
-    tags: ["힙합", "오버핏"]
-  },
-  {
-    id: 8,
-    name: "현우",
-    age: 26,
-    location: "신사동",
-    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&auto=format&fit=crop&q=60",
-    styleScore: 91,
-    tags: ["아메카지", "워크웨어"]
-  }
-];
+
 
 export default function ExploreScreen({ navigation }) {
-  const [likedProfiles, setLikedProfiles] = useState([]); // 좋아요 누른 프로필 ID 저장
-  const [page, setPage] = useState(0); // 현재 보여줄 페이지 (0 or 1)
+  const [profiles, setProfiles] = useState([]); // 서버 데이터를 담을 상태
+  const [likedProfiles, setLikedProfiles] = useState([]);
+  const [loading, setLoading] = useState(true); // 로딩 상태
 
-  // 현재 페이지의 4명 데이터 가져오기
-  const currentProfiles = allProfiles.slice(page * 4, (page + 1) * 4);
+// ★ [추가] 서버에서 데이터 가져오기
+  const loadUsers = async () => {
+    setLoading(true);
+    const data = await fetchExploreUsers();
+    setProfiles(data);
+    setLoading(false);
+  };
+// 화면이 켜질 때 데이터 로드
+  useEffect(() => {
+    loadUsers();
+  }, []);
+  
 
   // 좋아요 토글 함수
   const toggleLike = (id) => {
@@ -109,10 +47,9 @@ export default function ExploreScreen({ navigation }) {
     }
   };
 
-  // 새로고침 (다음 4명 보기)
+  // 새로고침 함수
   const handleRefresh = () => {
-    // 페이지가 0이면 1로, 1이면 0으로 토글 (데이터가 8개뿐이라)
-    setPage(prev => (prev === 0 ? 1 : 0));
+    loadUsers(); // 다시 서버에서 불러오기
   };
 
   // 하단 탭 스타일 함수
@@ -142,14 +79,18 @@ export default function ExploreScreen({ navigation }) {
       >
         {/* 2. Grid Container */}
         <View style={styles.gridContainer}>
-          {currentProfiles.map((profile) => {
+          {profiles.map((profile) => {
             const isLiked = likedProfiles.includes(profile.id);
             return (
               <View key={profile.id} style={styles.card}>
                 {/* Image Area */}
                 <View style={styles.imageContainer}>
-                  <Image source={{ uri: profile.image }} style={styles.cardImage} />
-                  
+                  {/* 이미지 없을 때 대비용 더미 이미지 처리 */}
+                    <Image 
+                      source={{ uri: profile.image || 'https://via.placeholder.com/300' }} 
+                      style={styles.cardImage} 
+                    />
+
                   {/* Match Score Badge */}
                   <View style={styles.matchBadge}>
                     <Text style={styles.matchText}>{profile.styleScore}%</Text>

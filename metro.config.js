@@ -5,7 +5,7 @@ const { getDefaultConfig } = require('@expo/metro-config');
 const defaultConfig = getDefaultConfig(__dirname);
 
 // 백엔드 폴더 이름입니다.
-const backendFolder = 'ai-recommendation-server'; 
+const backendFolder = 'Backend'; 
 
 module.exports = {
   ...defaultConfig,
