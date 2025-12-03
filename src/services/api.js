@@ -1,34 +1,43 @@
-// D:\fashion-jiok\fashion-jiok\src\services\api.js (충돌 해결 및 기능 통합 최종 버전)
+import React, { useState, useEffect } from 'react';
 
-// ⚠️ 실제 폰에서 테스트하려면 PC의 내부 IP 주소로 변경해야 합니다.
-const BASE_URL = 'http://172.30.1.89:3000'; 
-
-// AI 서버의 엔드포인트
-const AI_SUGGESTIONS_URL = `${BASE_URL}/api/chat/suggestions`;
-const DATE_COURSE_URL = `${BASE_URL}/api/datecourse/suggestions`;
-
-
-// =========================================================
-// 🌟 [START] MOCK 데이터 정의
-// =========================================================
-const MOCK_PROFILE = { 
-    userId: 'guest_test', 
-    name: 'MockUser',
+// ⭐️ MOCK 데이터 (필요하다면 실제 사용하시는 Mock 데이터로 대체하세요)
+// ChatScreen에서 AI 제안 테스트를 위해 필요합니다.
+const MOCK_PROFILE = {
+    name: '사용자',
+    age: 28,
+    style: '미니멀리즘',
+    hobbies: ['독서', '카페 투어']
 };
 
 const MOCK_HISTORY = [
-    { role: 'user', text: '대화를 시작하는 첫 멘트 추천해줄래? 날씨나 안부 물어보 좋아' },
-    { role: 'model', text: '네, 대화를 시작하기에 적절한 멘트를 추천하겠습니다.' }
+    { role: 'user', text: '안녕하세요! 스타일이 정말 좋으시네요.' },
+    { role: 'model', text: '감사합니다! 혹시 좋아하는 취미가 있으세요?' }
 ];
-// =========================================================
-// 🌟 [END] MOCK 데이터 정의
-// =========================================================
 
+// ----------------------------------------------------
+// ⭐️ 1. 서버 주소 및 API 엔드포인트 정의 (중앙 관리)
+// ----------------------------------------------------
+
+// ChatListScreen에서 사용하던 하드코딩된 IP 주소를 중앙 관리합니다.
+export const SERVER_URL = 'http://172.30.1.89:3000'; 
+
+// 🚨 AI 추천 API URL: 404 오류 해결을 위해 백엔드 라우트와 일치시킵니다.
+export const AI_SUGGESTIONS_URL = `${SERVER_URL}/api/recommendation`; 
+
+// 다른 API URL들
+export const CHATLIST_URL = `${SERVER_URL}/api/chatlist`;
+export const DATE_COURSE_URL = `${SERVER_URL}/api/date-course`;
+export const EXPLORE_URL = `${SERVER_URL}/api/users/explore`;
+
+// ----------------------------------------------------
+// ⭐️ 2. 함수 정의 및 Export
+// ----------------------------------------------------
 
 /**
- * 🤖 AI 대화 제안 API 호출
- * @param {object} chatContext - { otherUserId, chatHistory, userProfile }
- * @returns {Promise<Array<string>>} AI가 생성한 추천 문구 배열
+ * 🤖 AI 추천 제안 API 호출
+ * 🚨 이 함수 내부에 AI_SUGGESTIONS_URL을 사용하여 404 오류가 해결됩니다.
+ * @param {object} chatContext - { userProfile, chatHistory }
+ * @returns {Promise<Array<string>>} 추천 메시지 배열
  */
 export async function getAiSuggestions(chatContext = {}) {
     const contextToSend = { ...chatContext };
@@ -57,15 +66,17 @@ export async function getAiSuggestions(chatContext = {}) {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
+            const errorData = await response.json().catch(() => ({ error: 'Unknown server error' }));
             throw new Error(errorData.error || `Server responded with status: ${response.status}`);
         }
 
         const data = await response.json();
         console.log('[API] Received AI suggestions:', data.suggestions);
+        // 서버 응답 형태가 { suggestions: [...] } 일 때
         return data.suggestions || [];
 
     } catch (error) {
+        // 이전 스크린샷에서 보았던 에러 로깅
         console.error('Error calling AI Suggestions API:', error);
         return [`[API 호출 오류] ${error.message}`];
     }
@@ -90,7 +101,7 @@ export async function getDateCourseSuggestions(context) {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
+            const errorData = await response.json().catch(() => ({ error: 'Unknown server error' }));
             throw new Error(errorData.error || `Server responded with status: ${response.status}`);
         }
 
@@ -111,12 +122,10 @@ export async function getDateCourseSuggestions(context) {
  */
 export const fetchExploreUsers = async () => {
     try {
-        const EXPLORE_URL = `${BASE_URL}/api/users/explore`;
         console.log(`📡 데이터 요청 중: ${EXPLORE_URL}`);
         
         const response = await fetch(EXPLORE_URL);
         
-        // ⭐️ 응답 상태 확인
         if (!response.ok) {
             console.error(`❌ 서버 응답 실패: ${response.status}`);
             return [];
@@ -124,8 +133,6 @@ export const fetchExploreUsers = async () => {
         
         const data = await response.json();
         
-        // ⭐️ 수정: 백엔드가 배열을 직접 반환하므로 바로 사용
-        // 배열인지 확인
         if (Array.isArray(data)) {
             console.log(`✅ 탐색 데이터 수신 완료: ${data.length}명`);
             return data;
@@ -143,5 +150,36 @@ export const fetchExploreUsers = async () => {
     } catch (error) {
         console.error('❌ 네트워크 에러:', error);
         return [];
+    }
+};
+
+/**
+ * 💬 채팅 목록 사용자 목록 로드 (ChatListScreen에서 분리된 로직)
+ * @param {number} userId - 현재 사용자 ID
+ * @returns {Promise<Array<object>>} 채팅 목록
+ */
+export const fetchChatList = async (userId) => { 
+    try {
+        const url = `${CHATLIST_URL}?userId=${userId}`;
+        console.log(`📡 채팅 목록 요청 중: ${url}`);
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            console.error(`❌ 서버 응답 실패: ${response.status}`);
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (Array.isArray(data)) {
+            console.log(`✅ 채팅 목록 수신 완료: ${data.length}개`);
+            return data;
+        }
+        
+        return [];
+    } catch (error) {
+        console.error('❌ [CHATLIST] 데이터 로드 실패:', error);
+        throw error;
     }
 };
