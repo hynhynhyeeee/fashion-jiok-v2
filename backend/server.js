@@ -2,8 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-// ★ 중요: 경로가 정확해야 합니다.
 const { pool, closePool } = require('./src/config/database');
+
+// ⭐️ 라우트 파일 가져오기
+const userRoutes = require('./src/routes/userRoutes');
 
 // 환경 변수 로드
 dotenv.config();
@@ -51,7 +53,6 @@ app.get('/', (req, res) => {
 // (2) DB 테스트
 app.get('/api/test-db', async (req, res) => {
   try {
-    // 간단한 쿼리로 연결 확인
     const [rows] = await pool.query('SELECT 1 + 1 AS solution');
     res.json({ success: true, message: 'DB 연결 정상', result: rows[0].solution });
   } catch (error) {
@@ -96,11 +97,16 @@ app.post('/api/recommendation', async (req, res) => {
   }
 });
 
+// ⭐️ (4) 유저 관련 라우트 연결 (explore, locations 포함)
+app.use('/api/users', userRoutes);
+
 // ========================================
 // 4. 서버 시작
 // ========================================
 const server = app.listen(PORT, () => {
   console.log(`🚀 서버가 실행되었습니다: http://localhost:${PORT}`);
+  console.log(`📍 탐색 API: http://localhost:${PORT}/api/users/explore`);
+  console.log(`🗺️ 지도 API: http://localhost:${PORT}/api/users/locations`);
 });
 
 // 종료 처리
@@ -111,40 +117,4 @@ process.on('SIGINT', async () => {
     console.log('👋 서버가 안전하게 종료되었습니다.');
     process.exit(0);
   });
-});
-
-
-// ★ [추가] (2-1) 탐색 화면용 유저 목록 API
-app.get('/api/users/explore', async (req, res) => {
-  try {
-    // 1. 유저 정보와 대표 이미지(is_primary=1)를 조인해서 가져옴
-    const query = `
-      SELECT 
-        u.user_id as id, 
-        u.name, 
-        u.age, 
-        u.location, 
-        u.job,
-        i.image_url as image,
-        80 + FLOOR(RAND() * 20) as styleScore -- 스타일 점수는 일단 랜덤 (나중에 AI로 교체)
-      FROM users u
-      LEFT JOIN user_images i ON u.user_id = i.user_id
-      WHERE i.is_primary = 1 OR i.is_primary IS NULL
-      ORDER BY RAND() -- 랜덤하게 섞어서 보여줌
-      LIMIT 10
-    `;
-    
-    const [rows] = await pool.query(query);
-    
-    // 2. 태그는 아직 없으니 임시 태그 추가 (DB 구조에 맞게 추후 수정)
-    const usersWithTags = rows.map(user => ({
-      ...user,
-      tags: ["미니멀", "데일리"] // 임시 태그
-    }));
-
-    res.json({ success: true, data: usersWithTags });
-  } catch (error) {
-    console.error('유저 조회 에러:', error);
-    res.status(500).json({ success: false, message: '서버 에러' });
-  }
 });
